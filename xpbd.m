@@ -167,54 +167,56 @@ classdef xpbd
         adtdt= obj.alpha/(obj.dt*obj.dt);
         vdtdt= obj.volalpha/(obj.dt*obj.dt);
 
+        p1 = obj.constraints(:,1);
+        p2 = obj.constraints(:,2);
+        l = obj.constraints(:,3);
+        
+        p3 = obj.vol_constraints(:,1);
+        p4 = obj.vol_constraints(:,2);
+        p5 = obj.vol_constraints(:,3);
+        p6 = obj.vol_constraints(:,4);
+        v_r = obj.vol_constraints(:,5);
+
+        obj.a(3,:) = ones(1,obj.num) * obj.g;
         for fr = 1:obj.frs
-            obj.a(3,:) = ones(1,obj.num) * obj.g;
             obj.v = obj.v + obj.dt * obj.a;
             x_old = obj.x;
             obj.x = obj.x + obj.dt * obj.v;
             below_ground = obj.x(3,:) <= obj.ground;
             obj.x(3,below_ground) = obj.ground + obj.dt * -obj.v(3,below_ground) * obj.restitution;
+            lambdadist = zeros(1,size(obj.constraints,1));
+            lambdavol = zeros(1,size(obj.vol_constraints,1));
+
             for iter = 1:obj.iters
                 for j = 1:size(obj.constraints,1)
-                    lambda = 0;
-                    p1 = obj.constraints(j,1);
-                    p2 = obj.constraints(j,2);
-                    l = obj.constraints(j,3);
-
-                    distance = obj.x(:,p1)-obj.x(:,p2);
+                    distance = obj.x(:,p1(j))-obj.x(:,p2(j));
                     normdist = norm(distance);
                     if normdist == 0
                         normdist = 1e-8;
                     end
 
-                    cx = normdist - l;
+                    cx = normdist - l(j);
 
                     dcx1 = distance/normdist;
-                    dcx2 = -distance/normdist;
+                    dcx2 = -dcx1;
 
-                    deltalambda = (-cx - lambda * adtdt)/(norm(dcx1)^2/obj.m(p1)+norm(dcx2)^2/obj.m(p2)+adtdt);
+                    deltalambda = (-cx - lambdadist(j) * adtdt)/(norm(dcx1)^2/obj.m(p1(j))+norm(dcx2)^2/obj.m(p2(j))+adtdt);
 
-                    obj.x(:,p1) = obj.x(:,p1) + 1/obj.m(p1) * dcx1 * deltalambda;
-                    obj.x(:,p2) = obj.x(:,p2) + 1/obj.m(p2) * dcx2 * deltalambda;
-                    lambda = lambda + deltalambda;
+                    obj.x(:,p1(j)) = obj.x(:,p1(j)) + 1/obj.m(p1(j)) * dcx1 * deltalambda;
+                    obj.x(:,p2(j)) = obj.x(:,p2(j)) + 1/obj.m(p2(j)) * dcx2 * deltalambda;
+                    lambdadist(j) = lambdadist(j) + deltalambda;
                 end
                 for j = 1:size(obj.vol_constraints,1)
-                    p1 = obj.vol_constraints(j,1);
-                    p2 = obj.vol_constraints(j,2);
-                    p3 = obj.vol_constraints(j,3);
-                    p4 = obj.vol_constraints(j,4);
-                    v_r = obj.vol_constraints(j,5);
-
-                    v1 = obj.x(:, p4) - obj.x(:, p2);
-                    v2 = obj.x(:, p3) - obj.x(:, p2);
-                    v3 = obj.x(:, p3) - obj.x(:, p1);
-                    v4 = obj.x(:, p4) - obj.x(:, p1);
-                    v5 = obj.x(:, p2) - obj.x(:, p1);
+                    v1 = obj.x(:, p6(j)) - obj.x(:, p4(j));
+                    v2 = obj.x(:, p5(j)) - obj.x(:, p4(j));
+                    v3 = obj.x(:, p5(j)) - obj.x(:, p3(j));
+                    v4 = obj.x(:, p6(j)) - obj.x(:, p3(j));
+                    v5 = obj.x(:, p4(j)) - obj.x(:, p3(j));
 
                     cross_prod = cross(v5, v3);
 
                     vol = ((1/6) * dot(cross_prod, v4));
-                    cx = 6*(vol-v_r);
+                    cx = 6*(vol-v_r(j));
 
                     if abs(cx) < 1e-8
                         continue
@@ -225,13 +227,13 @@ classdef xpbd
                     dcx3 = cross(v4, v5);
                     dcx4 = cross(v5, v2);
 
-                    deltalambda = (-cx -lambda * vdtdt) / (norm(dcx1)^2/obj.m(p1) + norm(dcx2)^2/obj.m(p2) + norm(dcx3)^2/obj.m(p3) + norm(dcx4)^2/obj.m(p4) + vdtdt);
+                    deltalambda = (-cx -lambdavol(j) * vdtdt) / (norm(dcx1)^2/obj.m(p3(j)) + norm(dcx2)^2/obj.m(p4(j)) + norm(dcx3)^2/obj.m(p5(j)) + norm(dcx4)^2/obj.m(p6(j)) + vdtdt);
 
-                    obj.x(:,p1) = obj.x(:,p1) + 1/obj.m(p1) * dcx1 * deltalambda;
-                    obj.x(:,p2) = obj.x(:,p2) + 1/obj.m(p2) * dcx2 * deltalambda;
-                    obj.x(:,p3) = obj.x(:,p3) + 1/obj.m(p3) * dcx3 * deltalambda;
-                    obj.x(:,p4) = obj.x(:,p4) + 1/obj.m(p4) * dcx4 * deltalambda;
-                    lambda = lambda + deltalambda;
+                    obj.x(:,p3(j)) = obj.x(:,p3(j)) + 1/obj.m(p3(j)) * dcx1 * deltalambda;
+                    obj.x(:,p4(j)) = obj.x(:,p4(j)) + 1/obj.m(p4(j)) * dcx2 * deltalambda;
+                    obj.x(:,p5(j)) = obj.x(:,p5(j)) + 1/obj.m(p5(j)) * dcx3 * deltalambda;
+                    obj.x(:,p6(j)) = obj.x(:,p6(j)) + 1/obj.m(p6(j)) * dcx4 * deltalambda;
+                    lambdavol(j) = lambdavol(j) + deltalambda;
                 end
             end
             obj.v = (obj.x - x_old)/obj.dt;
