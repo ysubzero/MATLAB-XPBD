@@ -8,23 +8,23 @@ params = {
     'dt', 0.01;
     'ground level', -10;
     'friction', 0.0;
-    'filename', 'videos/importoutput03.mp4';
+    'filename', 'videos/importoutput10.mp4';
     'meshname', 'meshes/sphere4.obj';
     'substeps', 20;
     'frames', 1200;
     'alpha', 0.00001;
-    'scale', 3;
+    'scale (do not use for .txt)', 3;
     'k', 0.95;
     'restitution', 0.5;
-    'thetax', pi/4;
-    'thetay', pi/4;
-    'thetaz', pi/4
+    'rotation angle x', pi/4;
+    'rotation angle y', pi/4;
+    'rotation angle y', pi/4
 };
 
 prompts = params(:,1);
 defaults = cellfun(@(x) num2str(x), params(:,2), 'UniformOutput', false);
 
-user_in = inputdlg(prompts, 'Input Dialog', [1 100], defaults);
+user_in = inputdlg(prompts, 'Matlab XPBD', [1 100], defaults);
 
 if size(user_in) ~= 15
     return

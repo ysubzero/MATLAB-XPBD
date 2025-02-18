@@ -112,21 +112,10 @@ classdef xpbd
             obj.constraints = unique(obj.constraints,"rows");
 
             saveMesh(obj.x, obj.faces, obj.constraints, obj.vol_constraints, [obj.meshname, '.txt']);
-            elseif strcmpi(ext, '.txt')
+            end
+            if strcmpi(ext, '.txt')
                 [obj.x, obj.faces, obj.constraints, obj.vol_constraints] = readMesh(meshname);
-                obj.num = size(obj.x,2);
-
-                R_x = [1 0 0; 0 cos(thetax) -sin(thetax); 0 sin(thetax) cos(thetax)];
-                R_y = [cos(thetay) 0 sin(thetay); 0 1 0; -sin(thetay) 0 cos(thetay)];
-                R_z = [cos(thetaz) -sin(thetaz) 0; sin(thetaz) cos(thetaz) 0; 0 0 1];
-                R = R_z * R_y * R_x;
-                obj.x = R * obj.x;
                 
-                obj.v = [zeros(1,obj.num);zeros(1,obj.num);zeros(1,obj.num)];
-                obj.a = zeros(3, obj.num);
-                obj.m = ones(1, obj.num);
-            else
-                error("Incompatible file format.")
             end
 
                 
@@ -239,6 +228,7 @@ classdef xpbd
             writeVideo(vid, frame);
         end
         close(vid);
+        close(fig);
         end
     end
 end
