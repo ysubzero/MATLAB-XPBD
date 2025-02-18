@@ -63,17 +63,7 @@ classdef xpbd
 
             obj.x = (obj.x * scale);
 
-            R_x = [1 0 0; 0 cos(thetax) -sin(thetax); 0 sin(thetax) cos(thetax)];
-            R_y = [cos(thetay) 0 sin(thetay); 0 1 0; -sin(thetay) 0 cos(thetay)];
-            R_z = [cos(thetaz) -sin(thetaz) 0; sin(thetaz) cos(thetaz) 0; 0 0 1];
-            R = R_z * R_y * R_x;
-            obj.x = R * obj.x;
-
-            obj.v = [zeros(1,obj.num);zeros(1,obj.num);zeros(1,obj.num)];
-            obj.a = zeros(3, obj.num);
-            obj.m = ones(1, obj.num);
-
-            DT = delaunayTriangulation(obj.x');
+                        DT = delaunayTriangulation(obj.x');
             T = DT.ConnectivityList;
 
             obj.vol_constraints = zeros(size(T,1), 5);
@@ -110,8 +100,20 @@ classdef xpbd
             end
 
             obj.constraints = unique(obj.constraints,"rows");
+            obj.vol_constraints = unique(obj.vol_constraints,"rows");
 
             saveMesh(obj.x, obj.faces, obj.constraints, obj.vol_constraints, [obj.meshname, '.txt']);
+
+            R_x = [1 0 0; 0 cos(thetax) -sin(thetax); 0 sin(thetax) cos(thetax)];
+            R_y = [cos(thetay) 0 sin(thetay); 0 1 0; -sin(thetay) 0 cos(thetay)];
+            R_z = [cos(thetaz) -sin(thetaz) 0; sin(thetaz) cos(thetaz) 0; 0 0 1];
+            R = R_z * R_y * R_x;
+            obj.x = R * obj.x;
+
+            obj.v = [zeros(1,obj.num);zeros(1,obj.num);zeros(1,obj.num)];
+            obj.a = zeros(3, obj.num);
+            obj.m = ones(1, obj.num);
+
             elseif strcmpi(ext, '.txt')
                 [obj.x, obj.faces, obj.constraints, obj.vol_constraints] = readMesh(meshname);
                 obj.num = size(obj.x,2);
@@ -176,6 +178,7 @@ classdef xpbd
         p5 = obj.vol_constraints(:,3);
         p6 = obj.vol_constraints(:,4);
         v_r = obj.vol_constraints(:,5);
+        m_inv = 1./obj.m;
 
         obj.a(3,:) = ones(1,obj.num) * obj.g;
         for fr = 1:obj.frs
@@ -200,10 +203,10 @@ classdef xpbd
                     dcx1 = distance/normdist;
                     dcx2 = -dcx1;
 
-                    deltalambda = (-cx - lambdadist(j) * adtdt)/(norm(dcx1)^2/obj.m(p1(j))+norm(dcx2)^2/obj.m(p2(j))+adtdt);
+                    deltalambda = (-cx - lambdadist(j) * adtdt)/(norm(dcx1)^2*m_inv(p1(j))+norm(dcx2)^2*m_inv(p2(j))+adtdt);
 
-                    obj.x(:,p1(j)) = obj.x(:,p1(j)) + 1/obj.m(p1(j)) * dcx1 * deltalambda;
-                    obj.x(:,p2(j)) = obj.x(:,p2(j)) + 1/obj.m(p2(j)) * dcx2 * deltalambda;
+                    obj.x(:,p1(j)) = obj.x(:,p1(j)) + m_inv(p1(j)) * dcx1 * deltalambda;
+                    obj.x(:,p2(j)) = obj.x(:,p2(j)) + m_inv(p2(j)) * dcx2 * deltalambda;
                     lambdadist(j) = lambdadist(j) + deltalambda;
                 end
                 for j = 1:size(obj.vol_constraints,1)
@@ -227,12 +230,12 @@ classdef xpbd
                     dcx3 = cross(v4, v5);
                     dcx4 = cross(v5, v2);
 
-                    deltalambda = (-cx -lambdavol(j) * vdtdt) / (norm(dcx1)^2/obj.m(p3(j)) + norm(dcx2)^2/obj.m(p4(j)) + norm(dcx3)^2/obj.m(p5(j)) + norm(dcx4)^2/obj.m(p6(j)) + vdtdt);
+                    deltalambda = (-cx -lambdavol(j) * vdtdt) / (norm(dcx1)^2*m_inv(p3(j)) + norm(dcx2)^2*m_inv(p4(j)) + norm(dcx3)^2*m_inv(p5(j)) + norm(dcx4)^2*m_inv(p6(j)) + vdtdt);
 
-                    obj.x(:,p3(j)) = obj.x(:,p3(j)) + 1/obj.m(p3(j)) * dcx1 * deltalambda;
-                    obj.x(:,p4(j)) = obj.x(:,p4(j)) + 1/obj.m(p4(j)) * dcx2 * deltalambda;
-                    obj.x(:,p5(j)) = obj.x(:,p5(j)) + 1/obj.m(p5(j)) * dcx3 * deltalambda;
-                    obj.x(:,p6(j)) = obj.x(:,p6(j)) + 1/obj.m(p6(j)) * dcx4 * deltalambda;
+                    obj.x(:,p3(j)) = obj.x(:,p3(j)) + m_inv(p3(j)) * dcx1 * deltalambda;
+                    obj.x(:,p4(j)) = obj.x(:,p4(j)) + m_inv(p4(j)) * dcx2 * deltalambda;
+                    obj.x(:,p5(j)) = obj.x(:,p5(j)) + m_inv(p5(j)) * dcx3 * deltalambda;
+                    obj.x(:,p6(j)) = obj.x(:,p6(j)) + m_inv(p6(j)) * dcx4 * deltalambda;
                     lambdavol(j) = lambdavol(j) + deltalambda;
                 end
             end
@@ -247,6 +250,7 @@ classdef xpbd
             writeVideo(vid, frame);
         end
         close(vid);
+        msgbox('XPBD Simulation Completed', 'Notification');
         end
     end
 end

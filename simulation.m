@@ -7,14 +7,14 @@ params = {
     'g', -9.81;
     'dt', 0.01;
     'ground level', -10;
-    'friction', 0.0;
-    'filename', 'videos/importoutput15.mp4';
+    'friction', 0.1;
+    'filename', 'videos/importoutput22.mp4';
     'meshname', 'meshes/sphere4.obj';
     'substeps', 20;
     'frames', 1200;
     'alpha', 0.001;
     'scale (do not use for .txt)', 3;
-    'k', 0.95;
+    'k', 0.9;
     'restitution', 0.5;
     'rotation angle x', pi/4;
     'rotation angle y', pi/4;
