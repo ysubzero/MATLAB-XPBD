@@ -7,19 +7,20 @@ params = {
     'g', -9.81;
     'dt', 0.01;
     'ground level', -10;
-    'friction', 0.5;
-    'filename', 'videos/video1.mp4';
-    'meshname', 'meshes/cub2.obj';
-    'substeps', 100;
+    'friction', 0.2;
+    'filename', 'videos/video01.mp4';
+    'meshname', 'meshes/bunnysample.txt';
+    'substeps', 20;
     'frames', 1200;
     'alpha', 0.0001;
     'scale (do not use for .txt)', 1;
-    'k', 0.98;
-    'restitution', 1;
-    'rotation angle x', pi/4;
-    'rotation angle y', pi/4;
-    'rotation angle y', pi/4;
-    'surface edges only (1) / volume edges (0) (only for objs)', 0
+    'k', 0.99;
+    'restitution', 0.99;
+    'rotation angle x', 0;
+    'rotation angle y', 0;
+    'rotation angle z', 0;
+    'surface edges only (1) / volume edges (0) (only for objs)', 0;
+    'edge color', 'none';
 };
 
 prompts = params(:,1);
@@ -27,7 +28,7 @@ defaults = cellfun(@(x) num2str(x), params(:,2), 'UniformOutput', false);
 
 user_in = inputdlg(prompts, 'Matlab XPBD', [1 100], defaults);
 
-if size(user_in) ~= 16
+if size(user_in) ~= 17
     return
 end
 
@@ -53,6 +54,8 @@ thetaz = str2num(user_in{15});
 
 surface = str2num(user_in{16});
 
-sim = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,alpha,scale,k,restitution, thetax, thetay, thetaz, surface);
+edgecolor = user_in{17};
+
+sim = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,alpha,scale,k,restitution, thetax, thetay, thetaz, surface, edgecolor);
 sim.simulate();
 end

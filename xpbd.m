@@ -30,11 +30,12 @@ classdef xpbd
 
         vol_constraints = [];
         constraints = [];
+
+        edgecolor = 'k';
     end
     methods
-        function obj = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,alpha,scale,k,restitution, thetax, thetay, thetaz, surface)
+        function obj = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,alpha,scale,k,restitution, thetax, thetay, thetaz, surface, edgecolor)
             obj.g = g;
-            obj.dt = dt;
 
             obj.ground = ground;
             obj.friction = friction;
@@ -43,6 +44,8 @@ classdef xpbd
 
             obj.iters = iters;
             obj.frs = frs;
+
+            obj.dt = dt/obj.iters;
 
             obj.alpha = alpha;
             obj.scale = scale;
@@ -54,6 +57,8 @@ classdef xpbd
             obj.thetax = thetax;
             obj.thetay = thetay;
             obj.thetaz = thetaz;
+
+            obj.edgecolor = edgecolor;
 
             [~,~,ext] = fileparts(obj.meshname);
 
@@ -185,7 +190,7 @@ classdef xpbd
             xlabel('X'); ylabel('Y'); zlabel('Z');
 
             ptch = gobjects(size(obj.faces, 1), 1);
-            ptch(:) = patch('Vertices', obj.x', 'Faces', obj.faces(:, :), 'FaceColor', 'y', 'FaceAlpha', 1, 'LineWidth', 0.01);
+            ptch(:) = patch('Vertices', obj.x', 'Faces', obj.faces(:, :), 'FaceColor', 'y', 'FaceAlpha', 1, 'LineWidth', 0.01, 'EdgeColor', obj.edgecolor);
 
             patch('Vertices',[-ab -ab -ab; ab -ab -ab; ab ab -ab; -ab ab -ab], 'Faces', [1 2 3 4], 'FaceColor', [0.5, 0.5, 0.5]);
 
@@ -196,7 +201,7 @@ classdef xpbd
             text(-0.05, 0.02, 0, ['Edge Constraints: ', num2str(size(obj.constraints,1))], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
             text(-0.05, -0.02, 0, ['Distance Compliance: ', num2str(obj.alpha)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
             text(-0.05, -0.06, 0, ['k: ', num2str(obj.k)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
-            text(-0.05, -0.10, 0, ['dt: ', num2str(obj.dt)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
+            text(-0.05, -0.10, 0, ['dt: ', num2str(obj.dt*obj.iters)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
 
             adtdt= obj.alpha/(obj.dt*obj.dt);
             vdtdt= obj.volalpha/(obj.dt*obj.dt);
@@ -214,32 +219,28 @@ classdef xpbd
 
             obj.a(3,:) = ones(1,obj.num) * obj.g;
             for fr = 1:obj.frs
+               for iter = 1:obj.iters
                 obj.v = obj.v + obj.dt * obj.a;
                 x_old = obj.x;
                 obj.x = obj.x + obj.dt * obj.v;
                 below_ground = obj.x(3,:) <= obj.ground;
-                obj.x(3,below_ground) = obj.ground + obj.dt * -obj.v(3,below_ground) * obj.restitution;
-                lambdadist = zeros(1,size(obj.constraints,1));
-                lambdavol = zeros(1,size(obj.vol_constraints,1));
-
-                for iter = 1:obj.iters
+                obj.x(3,below_ground) = obj.ground;
                     for j = 1:size(obj.constraints,1)
                         distance = obj.x(:,p1(j))-obj.x(:,p2(j));
                         normdist = norm(distance);
                         if normdist == 0
-                            normdist = 1e-15;
+                            continue;
                         end
-
+    
                         cx = normdist - l(j);
-
+    
                         dcx1 = distance/normdist;
                         dcx2 = -dcx1;
-
-                        deltalambda = (-cx - lambdadist(j) * adtdt)/(norm(dcx1)^2*m_inv(p1(j))+norm(dcx2)^2*m_inv(p2(j))+adtdt);
-
+    
+                        deltalambda = (-cx)/(norm(dcx1)^2*m_inv(p1(j))+norm(dcx2)^2*m_inv(p2(j))+adtdt);
+    
                         obj.x(:,p1(j)) = obj.x(:,p1(j)) + m_inv(p1(j)) * dcx1 * deltalambda;
                         obj.x(:,p2(j)) = obj.x(:,p2(j)) + m_inv(p2(j)) * dcx2 * deltalambda;
-                        lambdadist(j) = lambdadist(j) + deltalambda;
                     end
                     for j = 1:size(obj.vol_constraints,1)
                         v1 = obj.x(:, p6(j)) - obj.x(:, p4(j));
@@ -253,28 +254,27 @@ classdef xpbd
                         vol = ((1/6) * dot(cross_prod, v4));
                         cx = 6*(vol-v_r(j));
 
-                        if abs(cx) < 1e-15
-                            continue
-                        end
-
                         dcx1 = cross(v1, v2);
                         dcx2 = cross(v3, v4);
                         dcx3 = cross(v4, v5);
                         dcx4 = cross(v5, v2);
 
-                        deltalambda = (-cx -lambdavol(j) * vdtdt) / (norm(dcx1)^2*m_inv(p3(j)) + norm(dcx2)^2*m_inv(p4(j)) + norm(dcx3)^2*m_inv(p5(j)) + norm(dcx4)^2*m_inv(p6(j)) + vdtdt);
+                        denom = (norm(dcx1)^2*m_inv(p3(j)) + norm(dcx2)^2*m_inv(p4(j)) + norm(dcx3)^2*m_inv(p5(j)) + norm(dcx4)^2*m_inv(p6(j)) + vdtdt);
+                        if denom == 0
+                            continue
+                        end
+                        deltalambda = (-cx) / denom;
 
                         obj.x(:,p3(j)) = obj.x(:,p3(j)) + m_inv(p3(j)) * dcx1 * deltalambda;
                         obj.x(:,p4(j)) = obj.x(:,p4(j)) + m_inv(p4(j)) * dcx2 * deltalambda;
                         obj.x(:,p5(j)) = obj.x(:,p5(j)) + m_inv(p5(j)) * dcx3 * deltalambda;
                         obj.x(:,p6(j)) = obj.x(:,p6(j)) + m_inv(p6(j)) * dcx4 * deltalambda;
-                        lambdavol(j) = lambdavol(j) + deltalambda;
                     end
-                end
                 obj.v = (obj.x - x_old)/obj.dt;
                 below_ground = obj.x(3,:) <= obj.ground + 1e-3;
                 obj.v(3,below_ground) = -obj.v(3,below_ground);
                 obj.v([1 2],below_ground) = obj.v([1 2],below_ground)*obj.friction;
+               end
                 set(frame_txt, 'String', ['Frame: ', num2str(fr)]);
                 set(ptch(:), 'Vertices', obj.x');
                 drawnow;
