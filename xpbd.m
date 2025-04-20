@@ -13,6 +13,7 @@ classdef xpbd
         alpha = 0.000001;
         scale = 3;
 
+        vol_k = 0.95;
         k = 0.95;
         volalpha = 1/0.95;
         restitution = 0.5;
@@ -34,7 +35,7 @@ classdef xpbd
         edgecolor = 'k';
     end
     methods
-        function obj = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,alpha,scale,k,restitution, thetax, thetay, thetaz, surface, edgecolor)
+        function obj = xpbd(g,dt,ground,friction,filename,meshname,iters,frs,k,scale,vol_k,restitution, thetax, thetay, thetaz, surface, edgecolor)
             obj.g = g;
 
             obj.ground = ground;
@@ -47,12 +48,23 @@ classdef xpbd
 
             obj.dt = dt/obj.iters;
 
-            obj.alpha = alpha;
+            obj.k = k;
+            obj.alpha = 0;
+            if k
+                obj.alpha = 1/k;
+            end
+
             obj.scale = scale;
 
-            obj.k = k;
-            obj.volalpha = 1/k;
-            obj.restitution = restitution;
+
+            obj.vol_k = vol_k;
+            obj.volalpha = 0;
+
+            if vol_k
+                obj.volalpha = 1/vol_k;
+            end
+
+            obj.restitution = restitution^(1/iters);
 
             obj.thetax = thetax;
             obj.thetay = thetay;
@@ -115,6 +127,18 @@ classdef xpbd
 
                     DT = delaunayTriangulation(obj.x');
                     T = DT.ConnectivityList;
+                    tetramesh(DT,'FaceAlpha',1);
+                    title('Delaunay Triangulation')
+
+                    %{
+                    shp = alphaShape(obj.x');
+                    alpha_critical = criticalAlpha(shp,"one-region");
+                    shp.Alpha = alpha_critical*1.1;
+                    
+                    [T, ~] = alphaTriangulation(shp);
+                    plot(shp)
+                    title('Delaunay Triangulation')
+                    %}
 
                     obj.vol_constraints = zeros(size(T,1), 5);
                     obj.constraints = [];
@@ -199,9 +223,9 @@ classdef xpbd
             text(-0.05, 0.10, 0, ['Verts: ', num2str(size(obj.x,2))], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
             text(-0.05, 0.06, 0, ['Volume Constraints: ', num2str(size(obj.vol_constraints,1))], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
             text(-0.05, 0.02, 0, ['Edge Constraints: ', num2str(size(obj.constraints,1))], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
-            text(-0.05, -0.02, 0, ['Distance Compliance: ', num2str(obj.alpha)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
-            text(-0.05, -0.06, 0, ['k: ', num2str(obj.k)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
-            text(-0.05, -0.10, 0, ['dt: ', num2str(obj.dt*obj.iters)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
+            str = sprintf('k: %.4f, volume k: %.4f', obj.k, obj.vol_k);
+            text(-0.05, -0.02, 0, str, 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
+            text(-0.05, -0.06, 0, ['dt: ', num2str(obj.dt*obj.iters)], 'Units', 'normalized', 'Color','k', 'FontSize', 12, 'LineWidth', 2);
 
             adtdt= obj.alpha/(obj.dt*obj.dt);
             vdtdt= obj.volalpha/(obj.dt*obj.dt);
