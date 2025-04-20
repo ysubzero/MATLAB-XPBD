@@ -1,6 +1,6 @@
 /videos
 /build
-meshes/bunny.obj
+/meshes
 *.asv
 jacobixpbd.m
 *.mtl
